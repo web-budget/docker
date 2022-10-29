@@ -15,16 +15,19 @@ RUN yarn docker-build
 
 FROM nginx:stable-alpine as production-stage
 
-# create a folde to put our files
+# create a folder to put our files
 RUN mkdir /app
 
-# copy artifacts from build stage
+# copy generated html/js from build stage
 COPY --from=build-stage /app/dist /app
 
 # copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
 EXPOSE 80
+
+# set env vars
+ENV BACKEND_HOST localhost
 
 # run nginx with our app inside
 CMD ["nginx", "-g", "daemon off;"]
