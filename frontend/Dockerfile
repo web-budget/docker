@@ -15,11 +15,17 @@ RUN yarn docker-build
 
 FROM nginx:stable-alpine as production-stage
 
+# add bash to run our scripts
+RUN apk add bash
+
 # create a folder to put our files
 RUN mkdir /app
 
 # copy generated html/js from build stage
 COPY --from=build-stage /app/dist /app
+
+# copy entrypoint to the image
+COPY entrypoint.sh /app/entrypoint.sh
 
 # copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
@@ -27,7 +33,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80
 
 # set env vars
-ENV BACKEND_HOST localhost
+ENV LOG_REQUESTS false
+ENV API_HOST localhost:8080
+ENV API_PROTOCOL http
 
-# run nginx with our app inside
-CMD ["nginx", "-g", "daemon off;"]
+# run our entrypoint
+ENTRYPOINT ["/bin/bash", "-c", "/app/entrypoint.sh"]
