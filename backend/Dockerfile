@@ -29,9 +29,6 @@ ADD entrypoint.sh /app
 # change our workdir to the app folder
 WORKDIR /app
 
-# expose service port
-EXPOSE 8085
-
 # set env vars
 ENV MAX_MEM_ALLOC 256m
 ENV INITIAL_MEM_ALLOC 128m
@@ -41,5 +38,8 @@ ENV DB_PORT 5432
 ENV DB_NAME webbudget
 ENV DB_USER sa_webbudget
 ENV DB_PASSWORD sa_webbudget
+
+# expose service port
+EXPOSE 8085
 
 ENTRYPOINT ["/bin/bash", "-c", "/app/entrypoint.sh"]

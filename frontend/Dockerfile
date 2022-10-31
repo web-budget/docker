@@ -30,12 +30,14 @@ COPY entrypoint.sh /app/entrypoint.sh
 # copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
-EXPOSE 80
-
 # set env vars
 ENV LOG_REQUESTS false
-ENV API_HOST localhost:8080
+ENV WEB_PORT 8080
 ENV API_PROTOCOL http
+ENV API_URL localhost:8085
+
+# expose service port
+EXPOSE 80
 
 # run our entrypoint
 ENTRYPOINT ["/bin/bash", "-c", "/app/entrypoint.sh"]
