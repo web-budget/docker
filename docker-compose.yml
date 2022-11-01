@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: wb-database
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=webbudget
+      - POSTGRES_USER=sa_webbudget
+      - POSTGRES_PASSWORD=sa_webbudget
+      - POSTGRES_PORT=5433
+    networks:
+      - wb-network
+
+  backend:
+    image: arthurgregorio/webbudget-backend:latest
+    container_name: wb-backend
+    ports:
+      - "8085:8085"
+    environment:
+      - MAX_MEM_ALLOC=256m
+      - INITIAL_MEM_ALLOC=128m
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=webbudget
+      - DB_USER=sa_webbudget
+      - DB_PASSWORD=sa_webbudget
+    depends_on:
+      - database
+    networks:
+      - wb-network
+
+  frontend:
+    image: arthurgregorio/webbudget-frontend:latest
+    container_name: wb-frontend
+    ports:
+      - "8080:80"
+    environment:
+      - WEB_PORT=8080
+      - API_URL=backend:8085
+      - API_PROTOCOL=http
+      - LOG_REQUESTS=false
+    depends_on:
+      - backend
+    networks:
+      - wb-network
+
+networks:
+  wb-network:
+    name: wb-network
