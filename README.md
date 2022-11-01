@@ -72,3 +72,11 @@ To do it, inside the root folder of this project, run:
 It will download a pré-built image from a public repository called dockerhub, this image will come with a previous 
 released version of the application, it means using the docker compose environment will deliver to you a more stable
 version of the software.
+
+## Accessing the application
+
+After deploying the docker image using any of the approaches above you will be able to open your browser and type 
+`http://localhost:8080/` (if you choose 8080 for the frontend, if not, change the port here) to access the application. 
+Default username is `admin@webbudget.com.br` with password `admin`.
+
+Enjoy!
