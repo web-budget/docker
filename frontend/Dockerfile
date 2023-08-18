@@ -1,4 +1,4 @@
-FROM node:lts-alpine3.16 as build-stage
+FROM node:lts-alpine3.16 AS build-stage
 
 # add git binaries to be used later
 RUN apk update
@@ -13,7 +13,7 @@ WORKDIR /app
 # yarn install deps and build
 RUN yarn docker-build
 
-FROM nginx:stable-alpine as production-stage
+FROM nginx:stable-alpine AS production-stage
 
 # add bash to run our scripts
 RUN apk add bash

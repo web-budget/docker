@@ -1,45 +1,77 @@
-FROM gradle:7-alpine as build-stage
+ARG JAVA_VERSION
 
-# add git binaries to be used later
-RUN apk update
-RUN apk add git
+FROM gradle:7-alpine AS gradle-build
 
-# set our workdir for the root
+RUN apk update && apk add git
+
 WORKDIR /
-
-# download from git and build project
 RUN git clone https://github.com/web-budget/back-end.git app
-
-# set our workdir to the new folder with files
 WORKDIR /app
 
-RUN gradle --no-daemon -x test clean bootjar
+RUN gradle --no-daemon clean bootjar -x test
 
-FROM openjdk:17-slim as production-stage
+FROM eclipse-temurin:${JAVA_VERSION}-jdk AS jdk
 
-# create a folder to put our files
-RUN mkdir /app
+WORKDIR /
+RUN mkdir -p /build
+WORKDIR /build
 
-# copy jar from build stage
-COPY --from=build-stage /app/build/libs/back-end.jar /app
+FROM jdk AS jar-extractor
 
-# add entrypoint to the image
-ADD entrypoint.sh /app
+ARG JAVA_VERSION
 
-# change our workdir to the app folder
-WORKDIR /app
+COPY entrypoint.sh entrypoint.sh
+COPY --from=gradle-build /app/build/libs/back-end.jar app.jar
 
-# set env vars
-ENV MAX_MEM_ALLOC 256m
-ENV INITIAL_MEM_ALLOC 128m
+RUN java -Djarmode=layertools -jar app.jar extract
 
-ENV DB_HOST localhost
-ENV DB_PORT 5432
-ENV DB_NAME webbudget
-ENV DB_USER sa_webbudget
-ENV DB_PASSWORD sa_webbudget
+RUN jdeps \
+    --multi-release ${JAVA_VERSION} \
+    --class-path 'spring-boot-loader/org/*:snapshot-dependencies/BOOT-INF/lib/*:dependencies/BOOT-INF/lib/*' \
+    --recursive \
+    --ignore-missing-deps \
+    --print-module-deps \
+    -quiet \
+    app.jar \
+    > java-modules.txt
 
-# expose service port
-EXPOSE 8085
+RUN sed -i ' 1 s/.*/&,jdk.crypto.ec,jdk.management/' java-modules.txt
 
-ENTRYPOINT ["/bin/bash", "-c", "/app/entrypoint.sh"]
+FROM jdk AS jre-builder
+
+COPY --from=jar-extractor /build/java-modules.txt .
+
+RUN jlink \
+    --verbose \
+    --add-modules $(cat java-modules.txt) \
+    --compress 2 \
+    --strip-java-debug-attributes \
+    --no-header-files \
+    --no-man-pages \
+    --output "/build/opt/java-minimal"
+
+FROM debian:stable-slim AS package
+
+MAINTAINER contato@webbudget.com.br
+
+ENV JAVA_HOME="/opt/java-minimal"
+ENV PATH="$PATH:$JAVA_HOME/bin"
+
+RUN mkdir -p /workspace/lib
+RUN mkdir -p /workspace/log
+
+VOLUME ["/workspace/log"]
+
+WORKDIR /workspace/lib
+
+RUN rm -rf /var/lib/apt/lists/*
+
+COPY --from=jar-extractor /build/entrypoint.sh /workspace
+COPY --from=jre-builder /build/opt/java-minimal "$JAVA_HOME"
+
+COPY --from=jar-extractor /build/dependencies/ /workspace/lib
+COPY --from=jar-extractor /build/spring-boot-loader/ /workspace/lib
+COPY --from=jar-extractor /build/snapshot-dependencies/ /workspace/lib
+COPY --from=jar-extractor /build/application/ /workspace/lib
+
+ENTRYPOINT ["sh", "/workspace/entrypoint.sh"]
