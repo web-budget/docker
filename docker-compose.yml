@@ -20,8 +20,6 @@ services:
     ports:
       - "8085:8085"
     environment:
-      - MAX_MEM_ALLOC=256m
-      - INITIAL_MEM_ALLOC=128m
       - DB_HOST=database
       - DB_PORT=5432
       - DB_NAME=webbudget
@@ -38,10 +36,8 @@ services:
     ports:
       - "8080:80"
     environment:
-      - WEB_PORT=8080
-      - API_URL=backend:8085
-      - API_PROTOCOL=http
-      - LOG_REQUESTS=false
+      - API_URL=http://backend:8085
+      - LOG_REQUESTS=true
     depends_on:
       - backend
     networks:

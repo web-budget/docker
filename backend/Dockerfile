@@ -2,17 +2,16 @@ ARG JAVA_VERSION
 
 FROM gradle:7-alpine AS gradle-build
 
-RUN apk update && apk add git
+RUN apk update && apk --no-cache add git
 
 WORKDIR /
 RUN git clone https://github.com/web-budget/back-end.git app
 WORKDIR /app
 
-RUN gradle --no-daemon clean bootjar -x test
+RUN gradle --no-daemon clean bootjar -x test -x detekt
 
 FROM eclipse-temurin:${JAVA_VERSION}-jdk AS jdk
 
-WORKDIR /
 RUN mkdir -p /build
 WORKDIR /build
 
@@ -31,7 +30,6 @@ RUN jdeps \
     --recursive \
     --ignore-missing-deps \
     --print-module-deps \
-    -quiet \
     app.jar \
     > java-modules.txt
 
@@ -52,7 +50,8 @@ RUN jlink \
 
 FROM debian:stable-slim AS package
 
-MAINTAINER contato@webbudget.com.br
+LABEL maintainer="Arthur Gregorio"
+LABEL contact="contato@consusoft.com.br"
 
 ENV JAVA_HOME="/opt/java-minimal"
 ENV PATH="$PATH:$JAVA_HOME/bin"
@@ -64,10 +63,13 @@ VOLUME ["/workspace/log"]
 
 WORKDIR /workspace/lib
 
-RUN rm -rf /var/lib/apt/lists/*
+RUN apt -y update && \
+    apt -y install curl && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=jar-extractor /build/entrypoint.sh /workspace
-COPY --from=jre-builder /build/opt/java-minimal "$JAVA_HOME"
+COPY --from=jre-builder /build/opt/java-minimal $JAVA_HOME
 
 COPY --from=jar-extractor /build/dependencies/ /workspace/lib
 COPY --from=jar-extractor /build/spring-boot-loader/ /workspace/lib
