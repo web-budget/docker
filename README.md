@@ -1,82 +1,92 @@
 # webBudget docker
 
-Here you will find the files to build you own image of webBudget and run it inside a docker environment.
+Here you will find the files to build your own image of webBudget and run it inside a docker environment.
 
 ## Complex way: build from scratch
 
-As you noticed, there's two folders here, one to build an image for the backend and another for the frontend, both have
+As you noticed, there's two folders here, one to build the backend and another for the frontend image, both have
 the required files for each application inside its folder.
 
-Build process will download from github the latest version of the application and build it using the tools from each
-environment, for backend using gradle and for frontend using yarn. After building, it will create the runner image, the 
-one that you actually run with only the required ecosystem to serve the services. For frontend, we use Nginx and for 
-backend, OpenJDK.
+Build process will download from github the latest version of the application (from main branch) and build it. 
+
+After building, it will create the image, the one that you actually run with only the required ecosystem to serve the 
+applications.
 
 ### Building backend
 
-To build the backend side, inside the respective folder, run:
+Inside the backend folder from this project, runs:
 
-`docker build --no-cache --progress=plain -t webbudget/backend .`
+`docker build --build-arg JAVA_VERSION=17 -t arthurgregorio/webbudget-backend:latest .`
 
-Backend offers some variables to be set before running it:
+Before running the docker image you should get the information to pass as environment variables:
 
-- **MAX_MEM_ALLOC** maximum memory used by the Xmx parameter in the JVM config, default `256m`
-- **INITIAL_MEM_ALLOC** initial memory used by the Xms parameter in the JVM config, default `128m`
-- **DB_HOST** hostname to connect to the database, default `localhost`
-- **DB_PORT** port used to connect in the database, default `5432`
-- **DB_NAME** database to be used by the application, default `webbudget`
-- **DB_USER** username to connect to the database, default `sa_webbudget`
-- **DB_PASSWORD** password to connect to the database, default `sa_webbudget`
+- **DATABASE_URL** database connection URL, default _localhost:5433_
+- **DATABASE_NAME** database name, default _webbudget_ 
+- **DATABASE_USER** database user, default _sa_webbudget_
+- **DATABASE_PASSWORD** database user password, default _sa_webbudget_
 
-To run the image you can do it using:
+> If you don't have a local instance of Postgres running, you can do it using docker:
+> `docker run --name wb-database -e POSTGRES_USER=sa_webbudget -e POSTGRES_PASSWORD=sa_webbudget -e POSTGRES_DB=webbudget -p 5432:5432 postgres`
+ 
+- **MAIL_HOST** the host for the e-mail service, **required**, no defaults
+- **MAIL_USER** the user for the e-mail service, **required**, no defaults
+- **MAIL_PASSWORD** the password for the e-mail service, **required**, no defaults
+- **MAIL_PORT** e-mail service port for connection, default _587_
+- **MAIL_DEFAULT_FROM_ADDRESS** default from e-mail address, default _noreply@webbudget.com.br_
+- **MAIL_REPLY_TO_ADDRESS** reply e-mail address, default _noreply@webbudget.com.br_
 
-`docker run --rm --name wb-backend -e DB_HOST=172.17.0.1 -e DB_PORT=5434 -it -p 8085:8085 webbudget/backend`
+> For a mocked e-mail service I would recommend the use of [MailTrap](https://mailtrap.io/)
 
-In the example, I will run the image using a Postgres instance already deployed to my docker environment, that's why I'm
-setting the `DB_HOST` and `DB_PORT`, the other vars are not set because my configuration used by postgres are compatible
-with the default ones.
+- **APPLICATION_JWT_TIMEOUT** timeout, in seconds, for authentication JWT token expiration, default _2400_
+- **APPLICATION_PORT** used to specify the port that the application should listen to incoming connections, default _8085_
 
-> **Note:**\
-> If you want to use a postgres container with docker, you can do it with this command: 
-> `docker run --name wb-postgres -e POSTGRES_USER=sa_webbudget -e POSTGRES_PASSWORD=sa_webbudget -e POSTGRES_DB=webbudget -p 5432:5432 postgres`
+Run the application using the command bellow, remember to put the required environment variables for your setup:
+
+```shell
+docker run --rm --name wb-backend -it \ 
+    -e MAIL_HOST=my.email.host.com \ 
+    -e MAIL_USER=the-user \ 
+    -e MAIL_PASSWORD=the-password \
+    -p 8085:8085 arthurgregorio/webbudget-backend:latest 
+```
 
 ### Building frontend
 
-To build the frontend side, inside the respective folder, run:
+Inside the frontend folder of this project, runs:
 
-`docker build --no-cache --progress=plain -t webbudget/frontend .`
+`docker build -t arthurgregorio/webbudget-frontend:latest .`
 
-Frontend also offer some variables to be set:
+Available environment variables:
 
-- **LOG_REQUESTS** if set to `true`, it will log URL and request params to browser console, default `false` 
-- **WEB_PORT** port to be used by the web application, default `8080`
-- **API_PROTOCOL** protocol to be used to connect to the backend, default `http`
-- **API_URL** the URL to connect to the backend, default `localhost:8085`
+- **API_URL** set the backend API to connect, this should point the the backend service, is required and defaults to _localhost:8085_ 
 
-To run, type: 
+And to run: 
 
-`docker run --rm --name wb-frontend -e API_URL=172.17.0.4:8085 -it -p 8080:80 webbudget/frontend`
+```shell
+docker run --name wb-frontend -it \
+    -e API_URL=http://127.0.0.1:8085 \
+    -p 8080:80 arthurgregorio/webbudget-frontend:latest
+```
 
-In this case I'm setting the `API_URL` to the IP of the backend docker container (can use `docker inspect` to find it), 
-also, don't forget to put the port with the URL otherwise the reverse proxy from Nginx might not work.
+Usually if you are running both projects, point the API_URL to the docker gateway should be enough.
 
-## Easy way: use docker compose
+## Using docker compose
 
 There's always an easy way! Using docker compose you can avoid doing those steps above and go straight to the point 
-where you can run the application with a pré configured environment.
+where you can run the application with a pra configured environment. To do it, in the root folder of the project, runs:
 
-To do it, inside the root folder of this project, run:
+> First, before running the command bellow, configure inside the file the environment variables for the e-mail service
 
 `docker compose -p webbudget up`
 
-It will download a pré-built image from a public repository called dockerhub, this image will come with a previous 
-released version of the application, it means using the docker compose environment will deliver to you a more stable
-version of the software.
+It will download the images from docker hub and you just need to change inside the file the environment vars you want to
+set.
 
 ## Accessing the application
 
 After deploying the docker image using any of the approaches above you will be able to open your browser and type 
 `http://localhost:8080/` (if you choose 8080 for the frontend, if not, change the port here) to access the application. 
-Default username is `admin@webbudget.com.br` with password `admin`.
 
-Enjoy!
+Default username is `admin@webbudget.com.br` with password `admin`. Enjoy!
+
+Found any bug or has suggestions? Feel free to add a ticket to any of the repositories for the project.

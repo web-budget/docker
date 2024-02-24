@@ -3,28 +3,24 @@ version: "3.9"
 services:
   database:
     image: postgres:15-alpine
-    container_name: wb-database
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_DB=webbudget
       - POSTGRES_USER=sa_webbudget
       - POSTGRES_PASSWORD=sa_webbudget
-      - POSTGRES_PORT=5433
     networks:
       - wb-network
 
   backend:
     image: arthurgregorio/webbudget-backend:latest
-    container_name: wb-backend
     ports:
       - "8085:8085"
     environment:
-      - DB_HOST=database
-      - DB_PORT=5432
-      - DB_NAME=webbudget
-      - DB_USER=sa_webbudget
-      - DB_PASSWORD=sa_webbudget
+      - DATABASE_URL=database:5432
+      - MAIL_HOST=host
+      - MAIL_USER=user
+      - MAIL_PASSWORD=password
     depends_on:
       - database
     networks:
@@ -32,12 +28,10 @@ services:
 
   frontend:
     image: arthurgregorio/webbudget-frontend:latest
-    container_name: wb-frontend
     ports:
       - "8080:80"
     environment:
       - API_URL=http://backend:8085
-      - LOG_REQUESTS=true
     depends_on:
       - backend
     networks:
